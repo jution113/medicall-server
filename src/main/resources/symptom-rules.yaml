@@ -1,0 +1,149 @@
+# 각 증상별로 API 호출 시 사용할 필터 파라미터와, 응답 후 적용할 가산점 규칙을 정의합니다.
+
+rules:
+  - symptom_keyword: "cardiac_arrest"
+    description: "심정지 (비외상성, KTAS 1)"
+    api_filters:
+      typeCode: ["A", "C", "D"]
+      rltmEmerCd: ["O001"]
+      rltmMeCd: ["O029", "O033"]
+      rltmCd: ["O006", "O005"]
+    scoring_rules:
+      rltmCd:
+        - { code: "O006", points: 20 }
+        - { code: "O005", points: 10 }
+      rltmMeCd:
+        - { code: "O033", points: 20 }
+
+  - symptom_keyword: "neuro_stroke"
+    description: "급성 뇌졸중 의증 (KTAS 1-2)"
+    api_filters:
+      typeCode: ["A", "C"]
+      svdssCd: ["Y0020", "Y0031", "Y0032"]
+      rltmMeCd: ["O027", "O028"]
+      rltmCd: ["O008"]
+    scoring_rules:
+      rltmMeCd:
+        - { code: "O028", points: 20 } # 중복이지만, 가산점 로직을 위해 그대로 둠
+      rltmCd:
+        - { code: "O008", points: 10 }
+
+  - symptom_keyword: "ami_chest_pain"
+    description: "급성 심근경색 의증 (KTAS 1-2)"
+    api_filters:
+      svdssCd: ["Y0010"]
+      rltmMeCd: ["O030", "O033"]
+      rltmCd: ["O011"]
+    scoring_rules:
+      rltmCd:
+        - { code: "O011", points: 20 }
+      rltmMeCd:
+        - { code: "O033", points: 20 }
+
+  - symptom_keyword: "severe_trauma"
+    description: "중증외상 (KTAS 1-2)"
+    api_filters:
+      subTypes: ["TRAUMA", "SEVERE"]
+      rltmEmerCd: ["O048"]
+      rltmCd: ["O025", "O022", "O007"]
+    scoring_rules:
+      subTypes: # 'subTypes:' 접두사 대신 카테고리 사용
+        - { code: "SEVERE", points: 10 }
+      rltmCd:
+        - { code: "O007", points: 20 }
+
+  - symptom_keyword: "anaphylaxis"
+    description: "아나필락시스 (KTAS 1-2)"
+    api_filters:
+      typeCode: ["A", "C"]
+      rltmMeCd: ["O029"]
+      rltmCd: ["O006"]
+    scoring_rules:
+      rltmCd:
+        - { code: "O006", points: 20 }
+
+  - symptom_keyword: "septic_shock"
+    description: "패혈증성 쇼크 (KTAS 1-2)"
+    api_filters:
+      typeCode: ["A", "C"]
+      rltmMeCd: ["O029", "O033"]
+      rltmCd: ["O005", "O006"]
+    scoring_rules:
+      rltmMeCd:
+        - { code: "O033", points: 20 }
+
+  - symptom_keyword: "seizure_active"
+    description: "경련 (진행 중, KTAS 2-3)"
+    api_filters:
+      typeCode: ["A", "C", "D"]
+      rltmEmerCd: ["O001"]
+      rltmMeCd: ["O027", "O028"]
+      rltmCd: ["O017"]
+    scoring_rules:
+      rltmMeCd:
+        - { code: "O027", points: 10 }
+        - { code: "O028", points: 20 }
+      rltmCd:
+        - { code: "O017", points: 10 }
+
+  - symptom_keyword: "hypoglycemia_coma"
+    description: "저혈당 의식저하 (포도당 투여 후 미회복, KTAS 2)"
+    api_filters:
+      typeCode: ["A", "C"]
+      rltmCd: ["O005", "O006"]
+      rltmMeCd: ["O027", "O028"]
+    scoring_rules:
+      rltmMeCd:
+        - { code: "O027", points: 10 }
+        - { code: "O028", points: 20 }
+
+  - symptom_keyword: "burn_severe"
+    description: "중증화상 (흡입손상 의심, KTAS 1-2)"
+    api_filters:
+      typeCode: ["A", "C"]
+      rltmMeCd: ["O029"]
+      svdssCd: ["Y0050"]
+      rltmCd: ["O013", "O023"]
+    scoring_rules:
+      svdssCd: # 'svdssCd:' 접두사 대신 카테고리 사용
+        - { code: "Y0050", points: 20 }
+      rltmCd:
+        - { code: "O013", points: 30 }
+        - { code: "O023", points: 20 }
+
+  - symptom_keyword: "delivery_emergency"
+    description: "응급분만 (태아 만출 임박, KTAS 2)"
+    api_filters:
+      svdssCd: ["Y0111"]
+      rltmCd: ["O021", "O014"]
+    scoring_rules:
+      rltmCd:
+        - { code: "O021", points: 30 }
+        - { code: "O014", points: 30 }
+
+  - symptom_keyword: "gastro_bleeding"
+    description: "대량 토혈/혈변 (쇼크 징후, KTAS 1-2)"
+    api_filters:
+      typeCode: ["A", "C"]
+      rltmMeCd: ["O031"]
+      rltmCd: ["O022", "O006"]
+      svdssCd: ["Y0060"]
+    scoring_rules:
+      rltmCd:
+        - { code: "O006", points: 20 }
+      svdssCd: # 'svdssCd:' 접두사 대신 카테고리 사용
+        - { code: "Y0060", points: 10 }
+
+  - symptom_keyword: "pediatric_arrest"
+    description: "소아 심정지 (KTAS 1)"
+    api_filters:
+      typeCode: ["A", "C", "D"]
+      rltmEmerCd: ["O004"]
+      rltmMeCd: ["O029"]
+      subTypes: ["CHILD"]
+      rltmCd: ["O010"]
+    scoring_rules:
+      subTypes: # 'subTypes:' 접두사 대신 카테고리 사용
+        - { code: "CHILD", points: 30 }
+      rltmCd:
+        - { code: "O010", points: 30 }

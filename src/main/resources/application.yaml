@@ -1,0 +1,96 @@
+spring:
+  config:
+    import: "classpath:symptom-rules.yaml"
+  logging:
+    level:
+      org.springframework: ${LOG_LEVEL_SECURITY}
+      web: ${LOG_LEVEL_WEB}
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${OAUTH_CLIENT_ID}
+            client-secret: ${OAUTH_CLIENT_SECRET}
+            authorization-grant-type: authorization_code
+            scope: profile, email
+            redirect-uri: ${OAUTH_REDIRECT_URI}
+  datasource:
+    url: ${DATABASE_URL}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+  jpa:
+    database: mysql
+    show-sql: false
+    generate-ddl: true
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        show_sql: false
+        format_sql: false
+  redis:
+    host: ${REDIS_HOST}
+    port: ${REDIS_PORT}
+    password: ${REDIS_PASSWORD}
+    ssl:
+      enabled: true
+  data:
+    mongodb:
+      uri: ${MONGODB_URI}
+
+jwt:
+  secret: ${JWT_SECRET}
+  access-token-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION}
+  refresh-token-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION}
+
+twilio:
+  account-sid: ${TWILIO_ACCOUNT_SID}
+  auth-token: ${TWILIO_AUTH_TOKEN}
+  from-phone-number: ${TWILIO_FROM_PHONE_NUMBER}
+
+api:
+  fe-server-dev:
+    base-url: ${WEB_BASE_URL}
+  fe-server:
+    base-url: ${WEB_BASE_URL_DEV}
+  api-server:
+    base-url: ${API_SERVER_BASE_URL}
+  ai-gateway-server:
+    base-url: ${AI_GATEWAY_SERVER_BASE_URL}
+    end-points:
+      analyze-hospital-message: ${AI_GATEWAY_SERVER_ANALYZE_HOSPITAL_MESSAGE_ENDPOINT}
+      create-inquiry-message: ${AI_GATEWAY_SERVER_CREATE_INQUIRY_MESSAGE_ENDPOINT}
+      create-conversation-message: ${AI_GATEWAY_SERVER_CREATE_CONVERSATION_MESSAGE_ENDPOINT}
+      create-ai-summary: ${AI_GATEWAY_SERVER_CREATE_AI_SUMMARY_ENDPOINT}
+
+#logging:
+#  level:
+#    root: ${LOG_LEVEL_ROOT}
+#    org.springframework: ${LOG_LEVEL_SPRING}
+#    jution113.Avenir: ${LOG_LEVEL_APP}
+
+file:
+  name: logs/app.log
+
+sse:
+  connection-time: ${SSE_CONNECTION_TIME}
+
+kakao:
+  mobility:
+    api-key: ${KAKAO_API_KEY}
+
+seoul:
+  api:
+    key: ${SEOUL_API_KEY}
+
+cloud:
+  aws:
+    credentials:
+      access-key: ${AWS_ACCESS_KEY_ID}
+      secret-key: ${AWS_SECRET_ACCESS_KEY}
+    region:
+      static: ap-northeast-2
+    s3:
+      bucket: ${BUCKET_NAME}

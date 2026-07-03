@@ -1,0 +1,67 @@
+# ===========================================
+# Gradle
+# ===========================================
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# ===========================================
+# IDE - IntelliJ IDEA
+# ===========================================
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+# ===========================================
+# OS
+# ===========================================
+.DS_Store
+Thumbs.db
+
+# ===========================================
+# Java
+# ===========================================
+*.class
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+
+# ===========================================
+# 환경변수 및 시크릿 파일 (절대 커밋 금지)
+# ===========================================
+.env
+.env.*
+.env.local
+.env.development
+.env.production
+
+# ===========================================
+# Spring Boot 로컬 설정 오버라이드 (실제 값 포함 가능)
+# ===========================================
+application-local.yaml
+application-local.yml
+application-local.properties
+application-dev.yaml
+application-dev.yml
+application-dev.properties
+application-prod.yaml
+application-prod.yml
+application-prod.properties
+
+# ===========================================
+# 로그 파일
+# ===========================================
+logs/
+*.log
+
+# ===========================================
+# 임시 파일
+# ===========================================
+*.tmp
+*.swp
+*.bak
