@@ -159,3 +159,48 @@ WebSocket은 양방향 통신이 필요할 때 적합하지만, 이 시나리오
 ### RDB ↔ MongoDB 연결 전략
 
 `call_artifacts` 컬렉션의 `inquiry_id` 필드로 MySQL의 `inquiry_logs` 테이블과 연결합니다. 실제 대용량 녹음 파일은 S3에 저장하고, MongoDB에는 URL만 보관하여 DB 성능 저하를 방지했습니다.
+
+---
+
+## ADR-006: 테스트 운영 환경의 인프라 Right-Sizing
+
+### 배경
+
+마스터 문서의 프로덕션 설계안은 3개의 독립 서버(API 서버, AI Gateway 서버, Jenkins CI/CD 서버)와 AWS 완전관리형 서비스(ElastiCache, DocumentDB)로 구성되어 있습니다.
+
+실제 가동 테스트 환경을 구축하면서 운영 비용과 관리 복잡도를 현실적인 수준으로 조정할 필요가 있었습니다.
+
+### 결정 — 유지한 것과 바꾼 것
+
+**유지한 것 (아키텍처 원칙)**
+
+서비스 경계는 그대로 유지했습니다. API 서버와 AI Gateway 서버의 분리는 단순한 서버 개수의 문제가 아니라, 두 서비스가 서로 다른 책임(비즈니스 로직 vs. AI 통화 로직)을 갖는다는 설계 원칙입니다. 이 경계를 합치면 나중에 분리 비용이 훨씬 커지므로 유지했습니다.
+
+**단순화한 것 (인프라 레이어)**
+
+| 구분 | 프로덕션 설계 | 테스트 운영 환경 | 이유 |
+|------|-------------|----------------|------|
+| CI/CD | Jenkins (별도 EC2) | GitHub Actions | public 레포 무료, 서버 1대 제거, 더 현대적인 선택 |
+| NoSQL DB | AWS DocumentDB | MongoDB Atlas Free Tier | DocumentDB 최소 비용 ~$60/month, Atlas 512MB 무료 |
+| Cache | AWS ElastiCache | Upstash Redis Free Tier | 테스트 트래픽 수준에서 무료 티어로 충분 |
+| 서버 구성 | 3 EC2 | 2 EC2 (t3.small × 2) | Jenkins 제거로 서버 1대 감소 |
+
+**월 예상 비용 비교**
+
+- 프로덕션 설계 기준: ~$150+/month
+- 테스트 운영 환경: ~$45/month (EC2 × 2 + RDS)
+
+### 판단 근거
+
+Jenkins 제거는 단순한 비용 절감이 아니라 더 나은 선택이기도 합니다. GitHub Actions는 코드 저장소와 파이프라인이 같은 곳에 있어 가시성이 높고, 별도 Jenkins 서버를 관리할 오버헤드가 없으며, 현재 업계 표준에 더 가깝습니다.
+
+MongoDB Atlas, Upstash Redis는 AWS 완전관리형 서비스와 동일한 인터페이스(MongoDB 드라이버, Redis 프로토콜)를 사용하므로, 실제 프로덕션 전환 시 연결 설정만 교체하면 됩니다. 애플리케이션 코드 변경은 필요하지 않습니다.
+
+### 프로덕션 전환 시 변경 필요 사항
+
+테스트 운영 이후 실제 서비스로 전환한다면 아래 순서로 확장합니다.
+
+1. Upstash Redis → AWS ElastiCache (Redis 프로토콜 호환, 환경변수만 교체)
+2. MongoDB Atlas → AWS DocumentDB (MongoDB 드라이버 호환, 환경변수만 교체)
+3. GitHub Actions → GitHub Actions 유지 또는 Jenkins 추가 (현재 구성으로도 프로덕션 운영 가능)
+4. EC2 t3.small → 트래픽에 따라 스케일업 또는 오토스케일링 그룹 도입
