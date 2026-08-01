@@ -55,8 +55,10 @@ juton113.Atempo
 `global/util/RedisService.java`, `domain/hospitalRanking/HospitalRankingService.java`
 - 거절 사유 카테고리화 + TTL 기반 가중치 조정 — 로직 유지, 가독성만 개선 대상
 
-## 알려진 기술 부채
-- `SecurityConfig`: 인증 로직 전체 주석 처리 상태 (`anyRequest().permitAll()`)
+## 알려진 기술 부채 (우선순위 순)
+- `SecurityConfig`: 인증 로직 전체 주석 처리 상태 (`anyRequest().permitAll()`) — **최우선 복구 대상**
+- 로그/모니터링: 파일 로깅만 존재, Spring Boot Actuator 및 구조화 로깅 미적용
+- docker-compose: Dockerfile은 존재하나 로컬 개발 환경용 docker-compose.yml 없음
 - `HospitalRankingService.createRankings()`: 테스트용 하드코딩 병원 코드 혼재
 - `NemcApiService.NemcHospitalData.from()`: 더미 데이터 생성 메서드가 프로덕션 코드에 혼재
 - Redis N+1 조회: TODO 주석 존재, bulkGet으로 개선 필요
