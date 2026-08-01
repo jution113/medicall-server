@@ -25,6 +25,7 @@ public class AuthController {
         return ResponseEntity.ok(new LoginResponseDto("Returns OAuth login endpoint.", loginUrl));
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFIED', 'BASIC')")
     @DeleteMapping("/logout")
     public ResponseEntity<?> logout(@RequestHeader("Authorization") String authorization) {
         String accessToken = resolveToken(authorization);
@@ -55,7 +56,7 @@ public class AuthController {
 
     @PreAuthorize("hasAnyRole('ADMIN')")
     @DeleteMapping("/refresh-token/{memberId}")
-    private ResponseEntity<?> invalidateRefreshToken(@PathVariable("memberId") String memberId) {
+    public ResponseEntity<?> invalidateRefreshToken(@PathVariable("memberId") String memberId) {
         authService.invalidateRefreshToken(memberId);
 
         return ResponseEntity.noContent().build();
