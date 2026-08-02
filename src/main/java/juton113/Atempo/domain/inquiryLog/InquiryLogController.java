@@ -5,6 +5,7 @@ import juton113.Atempo.domain.reviewLog.ReviewLogService;
 import juton113.Atempo.domain.reviewLog.dto.ReviewLogRequest;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @AllArgsConstructor
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 public class InquiryLogController {
     private final ReviewLogService reviewLogService;
 
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFIED')")
     @PostMapping("/{inquiryId}/review-logs")
     public ResponseEntity<Void> createInquiryReview(
             @PathVariable Long sessionId,
@@ -28,6 +30,7 @@ public class InquiryLogController {
         return ResponseEntity.noContent().build();
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFIED')")
     @PatchMapping("/{inquiryId}/review-logs/{reviewLogId}")
     public ResponseEntity<Void> updateInquiryReview(
             @PathVariable Long sessionId,

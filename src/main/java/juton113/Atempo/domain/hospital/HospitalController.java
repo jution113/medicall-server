@@ -2,6 +2,7 @@ package juton113.Atempo.domain.hospital;
 
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class HospitalController {
     private final HospitalService hospitalService;
 
+    @PreAuthorize("hasAnyRole('ADMIN')")
     @PostMapping("/refresh")
     public ResponseEntity<String> refreshHospitalData() {
         try {

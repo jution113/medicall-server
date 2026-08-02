@@ -6,6 +6,7 @@ import juton113.Atempo.domain.reviewLog.ReviewLogService;
 import juton113.Atempo.domain.reviewLog.dto.ReviewLogRequest;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @AllArgsConstructor
@@ -15,6 +16,7 @@ public class HospitalRankingController {
     private final HospitalRankingService hospitalRankingService;
     private final ReviewLogService reviewLogService;
 
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFIED')")
     @PostMapping("/{hospitalRankingId}/review-logs")
     public ResponseEntity<Void> createRankingReview(
             @PathVariable Long sessionId,
@@ -30,6 +32,7 @@ public class HospitalRankingController {
         return ResponseEntity.noContent().build();
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFIED')")
     @PatchMapping("/{hospitalRankingId}/review-logs/{reviewLogId}")
     public ResponseEntity<Void> updateRankingReview(
             @PathVariable Long sessionId,
@@ -46,6 +49,7 @@ public class HospitalRankingController {
         return ResponseEntity.noContent().build();
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFIED')")
     @PatchMapping("/{hospitalRankingId}")
     public ResponseEntity<Void> updateInquiryConfirmStatus(
             @PathVariable Long sessionId,

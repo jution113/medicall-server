@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 public class MemberController {
     private final MemberService memberService;
 
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFIED', 'BASIC')")
     @GetMapping("")
     public ResponseEntity<GetMemberResponseDto> getMember(@AuthenticationPrincipal UserDetails userDetails) {
         Long memberId = Long.parseLong(userDetails.getUsername());
@@ -21,6 +22,7 @@ public class MemberController {
         return ResponseEntity.ok(memberService.getMember(memberId));
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFIED', 'BASIC')")
     @PatchMapping("/profile")
     public ResponseEntity<GetMemberResponseDto> updateMemberProfile(@AuthenticationPrincipal UserDetails userDetails,
                                                              @RequestBody UpdateMemberProfileRequestDto updateMemberRequestDto) {
@@ -35,6 +37,7 @@ public class MemberController {
         return ResponseEntity.ok(memberService.updateMemberProfile(updateMemberDto));
     }
 
+    @PreAuthorize("hasAnyRole('ADMIN')")
     @PatchMapping("/certification")
     public ResponseEntity<GetMemberResponseDto> updateMemberCertificationInfo(@AuthenticationPrincipal UserDetails userDetails,
                                                                               @RequestBody UpdateMemberCertificationInfoRequest updateMemberCertificationInfoRequest) {

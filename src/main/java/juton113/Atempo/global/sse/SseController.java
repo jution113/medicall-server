@@ -17,11 +17,11 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 public class SseController {
     private final SseService sseService;
 
-    // TODO: QUERY PARAM: SESSION ID
-//    @PreAuthorize("hasAnyRole('ADMIN', VERIFIED)")
+    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFIED')")
     @GetMapping(value = "/subscribe", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter subscribe(/*@AuthenticationPrincipal UserDetails userDetails*/ @RequestParam long sessionId) {
-        // Long memberId = Long.parseLong(userDetails.getUsername());
+    public SseEmitter subscribe(@AuthenticationPrincipal UserDetails userDetails,
+                                @RequestParam long sessionId) {
+         Long memberId = Long.parseLong(userDetails.getUsername());
 
         return sseService.subscribe(sessionId);
     }
