@@ -21,6 +21,9 @@ public class RedisConfig {
     @Value("${spring.redis.password}")
     private String redisPassword;
 
+    @Value("${spring.redis.ssl.enabled:false}")
+    private boolean sslEnabled;
+
     @Bean
     public RedisConnectionFactory redisConnectionFactory() {
         RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration();
@@ -28,10 +31,11 @@ public class RedisConfig {
         redisStandaloneConfiguration.setPort(redisPort);
         redisStandaloneConfiguration.setPassword(redisPassword);
 
-        LettuceClientConfiguration clientConfig = LettuceClientConfiguration.builder()
-                .useSsl()
-//                .disablePeerVerification() // dev에서만
-                .build();
+        LettuceClientConfiguration.LettuceClientConfigurationBuilder clientConfigBuilder = LettuceClientConfiguration.builder();
+        if (sslEnabled) {
+            clientConfigBuilder.useSsl();
+        }
+        LettuceClientConfiguration clientConfig = clientConfigBuilder.build();
 
         return new LettuceConnectionFactory(redisStandaloneConfiguration, clientConfig);
     }
