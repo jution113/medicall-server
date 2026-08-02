@@ -26,7 +26,7 @@ public class KakaoMobilityService {
 
     private final RestTemplate restTemplate;
 
-    @Value("${kakao.api.key}")
+    @Value("${kakao.mobility.api-key}")
     private String kakaoApiKey;
 
     public EtaResult getEtaAndDistance(BigDecimal originLon, BigDecimal originLat, BigDecimal destinationLon, BigDecimal destinationLat) {
