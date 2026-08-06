@@ -74,6 +74,7 @@ dependencyManagement {
 tasks.named('test') {
 	outputs.dir snippetsDir
 	useJUnitPlatform()
+	systemProperty 'spring.profiles.active', 'local'
 }
 
 tasks.named('asciidoctor') {
