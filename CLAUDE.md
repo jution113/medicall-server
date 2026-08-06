@@ -20,7 +20,7 @@
 
 ## 패키지 구조
 ```
-juton113.Atempo
+juton113.Medicall
 ├── domain/
 │   ├── hospital/          # 병원 기본 정보 (월 1회 서울시 API 동기화)
 │   ├── hospitalRanking/   # KTAS 연동 우선순위 알고리즘 결과
