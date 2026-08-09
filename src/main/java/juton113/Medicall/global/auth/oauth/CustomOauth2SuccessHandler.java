@@ -31,6 +31,14 @@ public class CustomOauth2SuccessHandler implements AuthenticationSuccessHandler 
         AccessTokenDto accessTokenDto = authService.issueAccessToken(memberId);
         RefreshTokenDto refreshTokenDto = authService.issueRefreshToken(memberId);
 
+        // TODO: 웹/앱 로그인 구분용 임시 디버깅 코드 (User-Agent 기반 추정, 정리 대상)
+        if (isWebRequest(request)) {
+            response.setHeader("atk", accessTokenDto.getAccessToken());
+            response.setHeader("rtk", refreshTokenDto.getRefreshToken());
+            response.setStatus(HttpServletResponse.SC_OK);
+            return;
+        }
+
         String redirectUri = UriComponentsBuilder.fromUriString("medicall://auth")
                 .queryParam("atk", accessTokenDto.getAccessToken())
                 .queryParam("rtk", refreshTokenDto.getRefreshToken())
@@ -38,5 +46,10 @@ public class CustomOauth2SuccessHandler implements AuthenticationSuccessHandler 
                 .toUriString();
 
         response.sendRedirect(redirectUri);
+    }
+
+    private boolean isWebRequest(HttpServletRequest request) {
+        String userAgent = request.getHeader("User-Agent");
+        return userAgent != null && !userAgent.contains("wv");
     }
 }
