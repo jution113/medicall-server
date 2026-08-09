@@ -35,7 +35,7 @@ public class SecurityConfig {
         this.customAccessDeniedHandler = customAccessDeniedHandler;
     }
 
-    // 로컬 환경: 모든 요청 허용 및 복잡한 인증/인가 필터 생략
+    // 로컬 환경: 인가는 모두 허용하되, LocalAuthController가 발급한 JWT를 검증할 수 있도록 필터는 동일하게 적용
     @Bean
     @Profile("local")
     public SecurityFilterChain localSecurityFilterChain(HttpSecurity http) throws Exception {
@@ -45,6 +45,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .anyRequest().permitAll()
                 )
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .oauth2Login(oauth2 -> oauth2
                         .successHandler(customOauth2SuccessHandler)
                 );
