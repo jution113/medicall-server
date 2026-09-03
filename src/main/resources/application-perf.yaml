@@ -1,0 +1,23 @@
+# k6 부하테스트 전용. local 프로필 위에 얹어서 실행한다: spring.profiles.active=local,perf
+# local이 제공하는 접속 정보(JWT 시크릿, twilio/kakao/nemc 키 등)는 그대로 쓰고,
+# 여기서는 (1) 로컬 개발 데이터와 섞이지 않도록 DB/Mongo를 별도 스키마로 분리하고
+# (2) 부하 상황에서 로깅/커넥션풀이 측정치를 왜곡하지 않도록 조정하는 값만 오버라이드한다.
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/medicall_perf
+    hikari:
+      maximum-pool-size: 30 # 동시 VU 수에 맞춰 조정. 기본값(10)이면 커넥션 대기 시간이 응답시간에 섞여 들어옴
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/medicall_perf
+  jpa:
+    show-sql: false # local의 show-sql: true를 부하테스트 중엔 끔 — 로그 I/O 자체가 응답시간에 노이즈를 더함
+
+logging:
+  level:
+    root: WARN
+    juton113.Medicall: INFO
+
+perf:
+  seed:
+    hospital-count: 76 # N=20/40/76 구간을 재시딩 없이 요청 파라미터(search_radius)만으로 재현하려면 최대 N 이상 필요
