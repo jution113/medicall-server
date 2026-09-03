@@ -119,37 +119,6 @@ public class InquiryLogService {
         twilioService.processCallStatus(callSid, callStatus, sipCode, inquiryLog);
     }
 
-    // ----- ----- ----- ----- ----- [TEST] ----- ----- ----- ----- -----
-    @Transactional
-    public void createTestInquiries(long sessionId, Incident incident, List<HospitalRanking> targetHospitalRankings) {
-        // 문의 메시지 생성
-        InquiryMessageCreateRequest requestBody = InquiryMessageCreateRequest.builder()
-                .patientInformation(PatientInformation.form(incident))
-                .onSiteTreatment(incident.getOnSiteTreatment())
-                .build();
-
-        redisService.saveInqueryInfo(sessionId, requestBody, Duration.ofHours(1));
-
-        String inquiryMessage = mlServerService.createInquiryMessage(sessionId, requestBody).getFirstMonologue();
-
-        // 문의 시작
-        for (HospitalRanking hospitalRanking : targetHospitalRankings) {
-            // 코드가 T로 시작하는 병원들만 문의
-            if (!hospitalRanking.getHospital().getCode().startsWith("T")) continue;
-
-            String callId = twilioService.initiateCall(inquiryMessage, hospitalRanking.getHospital().getPhoneNumber());
-            inquiryLogRepository.save(InquiryLog.from(hospitalRanking, callId));
-
-            // 문의 직후 상황 전파
-            sseService.sendInquiryStatus(sessionId,
-                    InquiryStatusEvent.from(hospitalRanking.getHospitalRankingId(),
-                            CallStatus.CALLED,
-                            null,
-                            null)
-            );
-        }
-    }
-
     public List<InquiryLog> getInquiryLogsByRankings(List<HospitalRanking> hospitalRankingList) {
         return inquiryLogRepository.findByHospitalRankingIn(hospitalRankingList);
     }

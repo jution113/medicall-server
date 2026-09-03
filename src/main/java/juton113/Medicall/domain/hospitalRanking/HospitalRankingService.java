@@ -80,12 +80,6 @@ public class HospitalRankingService {
                 searchSession.getSearchRadius()
         );
 
-        // ----- ----- ----- ----- ----- [TEST DATA] ----- ----- ----- ----- -----
-        hospitalDatas.add(NemcApiService.NemcHospitalData.from(hospitalService.findHospital("T0000000").get(), symptomKeyword, rule));
-        hospitalDatas.add(NemcApiService.NemcHospitalData.from(hospitalService.findHospital("T0000001").get(), symptomKeyword, rule));
-        hospitalDatas.add(NemcApiService.NemcHospitalData.from(hospitalService.findHospital("T0000002").get(), symptomKeyword, rule));
-//        hospitalDatas.add(NemcApiService.NemcHospitalData.from(hospitalService.findHospital("T0000003").get(), symptomKeyword, rule));
-
         // 2. AI 서버 일괄(Bulk) 조회
 
         // 2.1 AI에 보낼 요청 데이터(DTO) 리스트 생성

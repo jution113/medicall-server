@@ -63,17 +63,4 @@ public class SearchSessionService {
 
         inquiryLogService.createInquiries(sessionId, incident, targetHospitalRankings);
     }
-
-// ----- ----- ----- ----- ----- [TEST] ----- ----- ----- ----- -----
-    @Transactional
-    public void startTestInquiry(long sessionId, List<Long> hospitalRankingIds) {
-        // 문의 메시지 생성에 필요한 정보 추출
-        Incident incident = searchSessionRepository.findById(sessionId)
-                .orElseThrow(() -> new CustomException(ErrorCode.SESSION_NOT_FOUND))
-                .getIncident();
-
-        List<HospitalRanking> targetHospitalRankings = hospitalRankingService.getHospitalRankingsByIds(hospitalRankingIds);
-
-        inquiryLogService.createTestInquiries(sessionId, incident, targetHospitalRankings);
-    }
 }
