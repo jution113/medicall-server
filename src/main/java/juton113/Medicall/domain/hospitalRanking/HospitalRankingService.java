@@ -144,10 +144,15 @@ public class HospitalRankingService {
                 Duration.ofHours(1)
         );
 
+        Map<String, RedisService.CooldownData> cooldownByCode = redisService.getActiveCooldownInfos(
+                hospitalCodes,
+                symptomKeyword.getKeyword()
+        );
+
         // 4. 점수 계산
         List<RankingBuildContext> buildContexts = new ArrayList<>();
 
-        // 거리 조회(Kakao)/거절 이력 조회(Redis)는 N+1 MVP에서 허용, 병원 조회/문의 수는 위에서 벌크 조회
+        // 거리 조회(Kakao)는 N+1 MVP에서 허용, 나머지(병원 조회/문의 수/거절 이력)는 위에서 벌크 조회
         for (NemcApiService.NemcHospitalData hospitalData : hospitalDatas) {
             Hospital hospital = hospitalByCode.get(hospitalData.getHospitalCode());
             if (hospital == null) continue;
@@ -192,7 +197,7 @@ public class HospitalRankingService {
             Boolean isWarning = false;
 
             // 4.2.2. 이전 거절 이력 패널티 계산
-            RedisService.CooldownData cooldownData = redisService.getActiveCooldownInfo(hospitalCode, symptomKeyword.getKeyword());
+            RedisService.CooldownData cooldownData = cooldownByCode.get(hospitalCode);
             if (cooldownData != null) {
                 RejectionReason rejectionReason = cooldownData.getReason();
                 isWarning = true;

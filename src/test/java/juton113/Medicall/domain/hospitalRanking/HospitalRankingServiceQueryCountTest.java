@@ -33,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -101,8 +102,8 @@ class HospitalRankingServiceQueryCountTest extends QueryCountTestSupport {
         given(mlServerService.predictRejectionFromMessages(any(), any()))
                 .willReturn(emptyPenaltyResponse(hospitals));
 
-        given(redisService.getActiveCooldownInfo(anyString(), anyString()))
-                .willReturn(null);
+        given(redisService.getActiveCooldownInfos(anyList(), anyString()))
+                .willReturn(Collections.emptyMap());
 
         resetQueryCount();
 
