@@ -25,6 +25,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
@@ -39,13 +41,15 @@ public class InquiryLogService {
     private final ReviewLogRepository reviewLogRepository;
 
     @Transactional(readOnly = true)
-    public long getRecentInquiryCount(String hospitalCode, Duration duration) {
+    public Map<String, Long> getRecentInquiryCounts(List<String> hospitalCodes, Duration duration) {
         LocalDateTime startTime = LocalDateTime.now().minus(duration);
 
-        return inquiryLogRepository.countByHospitalCodeAndCallStartedAtAfter(
-                hospitalCode,
-                startTime
-        );
+        return inquiryLogRepository.countGroupedByHospitalCodesAndCallStartedAtAfter(hospitalCodes, startTime)
+                .stream()
+                .collect(Collectors.toMap(
+                        row -> (String) row[0],
+                        row -> (Long) row[1]
+                ));
     }
 
     @Transactional

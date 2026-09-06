@@ -10,13 +10,14 @@ import java.util.List;
 import java.util.Optional;
 
 public interface InquiryLogRepository extends JpaRepository<InquiryLog, Long> {
-    @Query("SELECT COUNT(il) " +
+    @Query("SELECT hr.hospital.code, COUNT(il) " +
             "FROM InquiryLog il " +
             "JOIN il.hospitalRanking hr " +
-            "WHERE hr.hospital.code = :hospitalCode " +
-            "AND il.callStartedAt >= :startTime")
-    long countByHospitalCodeAndCallStartedAtAfter(
-            @Param("hospitalCode") String hospitalCode,
+            "WHERE hr.hospital.code IN :hospitalCodes " +
+            "AND il.callStartedAt >= :startTime " +
+            "GROUP BY hr.hospital.code")
+    List<Object[]> countGroupedByHospitalCodesAndCallStartedAtAfter(
+            @Param("hospitalCodes") List<String> hospitalCodes,
             @Param("startTime") LocalDateTime startTime
     );
 

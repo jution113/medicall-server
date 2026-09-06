@@ -42,8 +42,8 @@ public class HospitalService {
     private static final int PAGE_SIZE = 1000;
     private static final DateTimeFormatter API_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.S");
 
-    public Optional<Hospital> findHospital(String hospitalCode) {
-        return hospitalRepository.findByCode(hospitalCode);
+    public List<Hospital> findHospitals(List<String> hospitalCodes) {
+        return hospitalRepository.findAllByCodeIn(hospitalCodes);
     }
 
     @Transactional
