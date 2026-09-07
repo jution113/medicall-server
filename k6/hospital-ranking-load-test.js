@@ -1,10 +1,11 @@
 // N+1 개선 전/후 응답시간 비교용 k6 부하테스트.
 // perf 프로필로 띄운 서버(FakeKakaoMobility/FakeNemcApi/FakeMlServer/FakeTwilio + medicall_perf DB)를 대상으로 한다.
 //
-// 실행 예시 (N=20/40/76 구간별로 재시딩 없이 요청 파라미터만 바꿔서 실행):
-//   PHASE=before N=20 k6 run k6/hospital-ranking-load-test.js
-//   PHASE=before N=40 k6 run k6/hospital-ranking-load-test.js
-//   PHASE=before N=76 k6 run k6/hospital-ranking-load-test.js
+// 공식 측정(파일럿으로 도출한 duration=110초) 실행 예시
+// (N=20/40/76 구간별로 재시딩 없이 요청 파라미터만 바꿔서 실행):
+//   PHASE=before N=20 k6 run --duration 110s k6/hospital-ranking-load-test.js
+//   PHASE=before N=40 k6 run --duration 110s k6/hospital-ranking-load-test.js
+//   PHASE=before N=76 k6 run --duration 110s k6/hospital-ranking-load-test.js
 //   (Phase 1~6 수정 후 동일하게 PHASE=after 로 반복)
 //
 // FakeNemcApiService가 search_radius 값을 "반환할 병원 개수"로 재해석하므로, N은 곧 후보 병원 수다.
@@ -12,6 +13,7 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Trend } from 'k6/metrics';
+import { textSummary } from 'https://jslib.k6.io/k6-summary/0.0.4/index.js';
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
 const N = Number(__ENV.N || '76');
@@ -82,7 +84,7 @@ export default function (data) {
 export function handleSummary(data) {
     const path = `k6/results/${PHASE}-N${N}.json`;
     return {
-        [path]: JSON.stringify(data, null, 2),
-        stdout: JSON.stringify(data, null, 2),
+        [path]: JSON.stringify(data, null, 2),   // 파일: 원시 데이터 (분석용)
+        stdout: textSummary(data, { indent: ' ', enableColors: true }),  // 터미널: 표 형태 (캡처용)
     };
 }
