@@ -52,21 +52,29 @@ public class InquiryLogService {
                 ));
     }
 
-    @Transactional
-    public InquiryResult getInquiryResult(long hospitalRankingId) {
-        InquiryLog inquiryLog = inquiryLogRepository.findByHospitalRanking_hospitalRankingId(hospitalRankingId);
+    @Transactional(readOnly = true)
+    public Map<Long, InquiryResult> getInquiryResults(Map<Long, InquiryLog> inquiryLogByHospitalRankingId) {
+        List<Long> inquiryIds = inquiryLogByHospitalRankingId.values().stream()
+                .map(InquiryLog::getInquiryLogId)
+                .toList();
 
-        if (inquiryLog == null) return null;
-        long inquiryId = inquiryLog.getInquiryLogId();
+        Map<Long, CallArtifact> artifactByInquiryId = callArtifactService.getArtifactsByInquiryIds(inquiryIds);
 
-        CallArtifact callArtifact = callArtifactService.getArtifactByInquiryId(inquiryId);
-        Artifact artifact = callArtifact == null ? null : Artifact.from(callArtifact);
+        return inquiryLogByHospitalRankingId.entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        entry -> {
+                            InquiryLog inquiryLog = entry.getValue();
+                            CallArtifact callArtifact = artifactByInquiryId.get(inquiryLog.getInquiryLogId());
+                            Artifact artifact = callArtifact == null ? null : Artifact.from(callArtifact);
 
-        return InquiryResult.from(inquiryId,
-                inquiryLog.getCallStatus(),
-                inquiryLog.getCallResponseStatus(),
-                inquiryLog.getRejectionReasonCategory(),
-                artifact);
+                            return InquiryResult.from(inquiryLog.getInquiryLogId(),
+                                    inquiryLog.getCallStatus(),
+                                    inquiryLog.getCallResponseStatus(),
+                                    inquiryLog.getRejectionReasonCategory(),
+                                    artifact);
+                        }
+                ));
     }
 
     @Transactional

@@ -448,8 +448,17 @@ public class HospitalRankingService {
                         }
                 ));
 
-        List<HospitalRankingInfo> response = new ArrayList<>();
         String symptomKeyword = hospitalRankingList.get(0).getSearchSession().getIncident().getPatientSymptomKeyword().getKeyword();
+
+        List<String> hospitalCodes = hospitalRankingList.stream()
+                .map(hospitalRanking -> hospitalRanking.getHospital().getCode())
+                .toList();
+        Map<String, RedisService.CooldownData> cooldownByHospitalCode =
+                redisService.getActiveCooldownInfos(hospitalCodes, symptomKeyword);
+
+        Map<Long, InquiryResult> inquiryResultByRankingId = inquiryLogService.getInquiryResults(inquiryLogMap);
+
+        List<HospitalRankingInfo> response = new ArrayList<>();
 
         for (HospitalRanking hospitalRanking : hospitalRankingList) {
             long hospitalRankingId = hospitalRanking.getHospitalRankingId();
@@ -471,7 +480,7 @@ public class HospitalRankingService {
                     scoreDetails.getEta(),
                     scoreDetails.getDistance());
 
-            RedisService.CooldownData cooldownData = redisService.getActiveCooldownInfo(hospital.getCode(), symptomKeyword);
+            RedisService.CooldownData cooldownData = cooldownByHospitalCode.get(hospital.getCode());
             Boolean isWarning = false;
             String deselectionReason = hospitalRanking.getDeselectionReason();
             if (hospitalRanking.getDeselectionReason() != null) isWarning = true;
@@ -498,7 +507,7 @@ public class HospitalRankingService {
                     hospitalRanking.getIsSelectedByUser()
             );
 
-            InquiryResult inquiryResult = inquiryLogService.getInquiryResult(hospitalRankingId);
+            InquiryResult inquiryResult = inquiryResultByRankingId.get(hospitalRankingId);
 
             response.add(HospitalRankingInfo.from(
                     hospitalRankingId,
