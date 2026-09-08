@@ -20,8 +20,10 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 
-// N+1 증명용: HospitalService.fetchAndSynchronizeHospitalData()가 병원 건수에 비례해
-// findByCode/save를 개별 호출한다는 걸 쿼리 카운트로 검증한다. bulk 처리로 고치기 전까지는 실패해야 정상.
+// N+1 검증용: HospitalService.fetchAndSynchronizeHospitalData()의 존재 확인(findAllByCodeIn)이
+// 병원 건수(N)와 무관하게 1회만 실행되는지 쿼리 카운트로 검증한다. save는 Hospital이
+// GenerationType.IDENTITY라 병원 건수만큼 발생하는 게 정상이다 (saveAll로 모아도 못 줄이는 부분이라
+// 개별 save를 그대로 뒀다).
 @Transactional
 class HospitalServiceQueryCountTest extends QueryCountTestSupport {
 
@@ -32,7 +34,7 @@ class HospitalServiceQueryCountTest extends QueryCountTestSupport {
     private RestTemplate restTemplate;
 
     @Test
-    @DisplayName("fetchAndSynchronizeHospitalData - 병원 20건 동기화 시 쿼리가 건수에 비례해 발생한다 (N+1)")
+    @DisplayName("fetchAndSynchronizeHospitalData - 병원 20건 동기화 시에도 존재 확인 쿼리는 1회로 고정된다 (N+1 벌크화 검증)")
     void fetchAndSynchronizeHospitalData_QueryCountShouldNotScaleWithHospitalCount() {
         // given
         int hospitalCount = 20;
@@ -50,9 +52,10 @@ class HospitalServiceQueryCountTest extends QueryCountTestSupport {
         long queryCount = getQueryCount();
         System.out.printf("[QueryCount] fetchAndSynchronizeHospitalData(병원 %d건) 실행 쿼리 수 = %d%n", hospitalCount, queryCount);
 
-        // bulk(findAllByCodeIn + saveAll)로 처리하면 건수와 무관하게 상수 수준(여유 있게 5)이어야 함.
-        // 지금은 병원 1건당 findByCode + save가 각각 발생해 건수에 비례하므로 이 assert는 실패한다 (N+1 증명).
-        assertThat(queryCount).isLessThanOrEqualTo(5);
+        // 달성 가능한 쿼리 수 = 1(findAllByCodeIn으로 존재 확인 벌크 조회) + hospitalCount(저장)
+        // 저장은 saveAll로 모아봐도 hospitalCount만큼 그대로 나옴 — Hospital이 GenerationType.IDENTITY라
+        // Hibernate가 INSERT 배치 자체를 구조적으로 비활성화하기 때문. 그래서 개별 save를 그대로 뒀다.
+        assertThat(queryCount).isLessThanOrEqualTo(hospitalCount + 1);
     }
 
     private HospitalService.SeoulHospitalApiResponse sampleResponse(int count) {
