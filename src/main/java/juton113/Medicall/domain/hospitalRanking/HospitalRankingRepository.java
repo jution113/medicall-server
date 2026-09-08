@@ -10,4 +10,8 @@ import java.util.List;
 public interface HospitalRankingRepository extends JpaRepository<HospitalRanking, Long> {
     @EntityGraph(attributePaths = "hospital")
     List<HospitalRanking> findBySearchSession_searchSessionId(Long sessionId);
+
+    @Override
+    @EntityGraph(attributePaths = "hospital")
+    List<HospitalRanking> findAllById(Iterable<Long> ids);
 }

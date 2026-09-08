@@ -96,7 +96,7 @@ public class InquiryLogService {
 
         // 문의 시작
         for (HospitalRanking hospitalRanking : targetHospitalRankings) {
-            String callId = twilioService.initiateCall(inquiryMessage, hospitalRanking.getHospital().getPhoneNumber());
+            String callId = twilioService.initiateCall(inquiryMessage, hospitalRanking.getHospital().getPhoneNumber()); // fetch join 덕분에 프록시 초기화 없음
             inquiryLogRepository.save(InquiryLog.from(hospitalRanking, callId));
 
             // 문의 직후 상황 전파
