@@ -7,18 +7,19 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
 public class CallArtifactService {
     private final CallArtifactRepository callArtifactRepository;
 
-    public CallArtifact getArtifactByInquiryId(Long inquiryLogId) {
-
-        Optional<CallArtifact> optionalArtifact = callArtifactRepository.findByInquiryId(inquiryLogId);
-
-        return optionalArtifact.orElse(null);
+    public Map<Long, CallArtifact> getArtifactsByInquiryIds(List<Long> inquiryIds) {
+        return callArtifactRepository.findByInquiryIdIn(inquiryIds)
+                .stream()
+                .collect(Collectors.toMap(CallArtifact::getInquiryId, Function.identity()));
     }
 
     public CallArtifact createCallArtifact(InquiryLog inquiryLog,

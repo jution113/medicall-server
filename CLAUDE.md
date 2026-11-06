@@ -5,12 +5,7 @@
 - 현재 서버 미운영, GitHub public 레포
 
 ## 마스터 문서
-노션에 시스템 아키텍처, DB 설계, 알고리즘 상세, API 명세 포함.
-상세 메모리 파일:
-- `memory/project.md` — 프로젝트 개요, 데이터 흐름
-- `memory/db-schema.md` — RDB/Redis/MongoDB 스키마 설계
-- `memory/algorithm.md` — 병원 우선순위 알고리즘 상세
-- `memory/refactoring.md` — 리팩토링 우선순위 및 진행 상황
+노션에 시스템 아키텍처, DB 설계, 알고리즘 상세, API 명세 포함 (링크는 `CLAUDE.local.md` 참고)
 
 ## 기술 스택
 - Java 17, Spring Boot 3.4.3, Spring Data JPA, Spring Security
@@ -56,16 +51,12 @@ juton113.Medicall
 - 거절 사유 카테고리화 + TTL 기반 가중치 조정 — 로직 유지, 가독성만 개선 대상
 
 ## 알려진 기술 부채 (우선순위 순)
-- `SecurityConfig`: 인증 로직 전체 주석 처리 상태 (`anyRequest().permitAll()`) — **최우선 복구 대상**
 - 로그/모니터링: 파일 로깅만 존재, Spring Boot Actuator 및 구조화 로깅 미적용
 - docker-compose: Dockerfile은 존재하나 로컬 개발 환경용 docker-compose.yml 없음
-- `HospitalRankingService.createRankings()`: 테스트용 하드코딩 병원 코드 혼재
-- `NemcApiService.NemcHospitalData.from()`: 더미 데이터 생성 메서드가 프로덕션 코드에 혼재
-- Redis N+1 조회: TODO 주석 존재, bulkGet으로 개선 필요
+- `NemcApiService.NemcHospitalData.from()`: 더미 데이터 생성 메서드. 현재는 `HospitalRankingServiceQueryCountTest`의 테스트 픽스처 생성용으로만 호출됨 — 프로덕션 코드가 아닌 테스트 코드로 이동 대상
 
 ## 절대 하지 말 것
 - `KtasLevelWeight` 전략 패턴을 if-else로 바꾸는 것
-- `SecurityConfig` 문제를 조용히 삭제하거나 숨기는 것
 - `application.yaml` 환경변수 참조 방식 변경 (현재 상태 유지)
 - 요청하지 않은 기능 추가, 과도한 추상화
 

@@ -21,9 +21,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.willDoNothing;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -123,27 +121,4 @@ class SearchSessionControllerTest {
                 .andExpect(status().isForbidden());
     }
 
-    @Test
-    @DisplayName("POST /api/v1/search-sessions/{id}/inquiries/test - 성공 (ADMIN)")
-    @WithMockUser(roles = "ADMIN")
-    void startTestInquiry_Success() throws Exception {
-        willDoNothing().given(searchSessionService).startTestInquiry(anyLong(), any());
-
-        mvc.perform(post("/api/v1/search-sessions/1/inquiries/test")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(List.of(1L, 2L))))
-                .andExpect(status().isAccepted());
-    }
-
-    @Test
-    @DisplayName("POST /api/v1/search-sessions/{id}/inquiries/test - 실패 (BASIC은 권한 없음)")
-    @WithMockUser(roles = "BASIC")
-    void startTestInquiry_Fail_InsufficientRole() throws Exception {
-        mvc.perform(post("/api/v1/search-sessions/1/inquiries/test")
-                        .with(csrf())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(List.of(1L, 2L))))
-                .andExpect(status().isForbidden());
-    }
 }

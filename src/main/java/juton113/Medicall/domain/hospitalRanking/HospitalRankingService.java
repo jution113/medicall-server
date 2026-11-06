@@ -53,6 +53,19 @@ public class HospitalRankingService {
 
     private final HospitalRankingRepository hospitalRankingRepository;
 
+    private record RankingBuildContext(
+            HospitalRanking hospitalRanking,
+            Hospital hospital,
+            int duration,
+            int distance,
+            double finalScore,
+            List<String> capabilities,
+            Boolean isWarning,
+            String deselectionReason,
+            String cooldownAppliedAt,
+            Long cooldownDurationSeconds) {
+    }
+
     @Transactional
     public List<HospitalRankingInfo> createRankings(SearchSession searchSession,
                                                     PatientInformation patientInfo,
@@ -79,12 +92,6 @@ public class HospitalRankingService {
                 origin,
                 searchSession.getSearchRadius()
         );
-
-        // ----- ----- ----- ----- ----- [TEST DATA] ----- ----- ----- ----- -----
-        hospitalDatas.add(NemcApiService.NemcHospitalData.from(hospitalService.findHospital("T0000000").get(), symptomKeyword, rule));
-        hospitalDatas.add(NemcApiService.NemcHospitalData.from(hospitalService.findHospital("T0000001").get(), symptomKeyword, rule));
-        hospitalDatas.add(NemcApiService.NemcHospitalData.from(hospitalService.findHospital("T0000002").get(), symptomKeyword, rule));
-//        hospitalDatas.add(NemcApiService.NemcHospitalData.from(hospitalService.findHospital("T0000003").get(), symptomKeyword, rule));
 
         // 2. AI 서버 일괄(Bulk) 조회
 
@@ -124,22 +131,39 @@ public class HospitalRankingService {
         Map<String, AiPenaltyInfo> penaltyMap = aiResponse.getHospitalList().stream()
                 .collect(Collectors.toMap(AiPenaltyInfo::getHospitalCode, info -> info));
 
-        // 3. 응답 생성
-        List<HospitalRankingInfo> response = new ArrayList<>();
+        // 3. 병원 / 최근 문의 수 벌크 조회
+        List<String> hospitalCodes = hospitalDatas.stream()
+                .map(NemcApiService.NemcHospitalData::getHospitalCode)
+                .toList();
 
-        // 각 병원 순회 (N+1은 MVP에서 허용)
+        Map<String, Hospital> hospitalByCode = hospitalService.findHospitals(hospitalCodes).stream()
+                .collect(Collectors.toMap(Hospital::getCode, hospital -> hospital));
+
+        Map<String, Long> recentInquiryCountByCode = inquiryLogService.getRecentInquiryCounts(
+                hospitalCodes,
+                Duration.ofHours(1)
+        );
+
+        Map<String, RedisService.CooldownData> cooldownByCode = redisService.getActiveCooldownInfos(
+                hospitalCodes,
+                symptomKeyword.getKeyword()
+        );
+
+        // 4. 점수 계산
+        List<RankingBuildContext> buildContexts = new ArrayList<>();
+
+        // 거리 조회(Kakao)는 N+1 MVP에서 허용, 나머지(병원 조회/문의 수/거절 이력)는 위에서 벌크 조회
         for (NemcApiService.NemcHospitalData hospitalData : hospitalDatas) {
-            Optional<Hospital> optionalHospital = hospitalService.findHospital(hospitalData.getHospitalCode());
-            if (optionalHospital.isEmpty()) continue;
+            Hospital hospital = hospitalByCode.get(hospitalData.getHospitalCode());
+            if (hospital == null) continue;
 
-            Hospital hospital = optionalHospital.get();
             String hospitalCode = hospital.getCode();
 
-            // 3.1. 기본 점수 계산
-            // 3.1.1. 진료 적합도 계산
+            // 4.1. 기본 점수 계산
+            // 4.1.1. 진료 적합도 계산
             double capabilityScore = calculateCapabilityScore(rule.getScoringRules(), hospitalData);
 
-            // 3.1.3. 거리 점수 계산
+            // 4.1.2. 거리 점수 계산
             Location dest = hospital.getLocation();
             EtaResult eta = kakaoMobilityService.getEtaAndDistance(
                     origin.getLongitude(),
@@ -155,15 +179,12 @@ public class HospitalRankingService {
             KtasLevelWeight weightStrategy = KtasLevelWeight.fromLevel(patientInfo.getKtas().getLevel());
             double baseScore = weightStrategy.calculateBaseScore(capabilityScore, etaScore);
 
-            // 3.1.2. 병상 점수 계산
+            // 4.1.3. 병상 점수 계산
             double bedAvailabilityScore = calculateBedScore(hospitalData);
 
-            // 3.2. 패널티 계산
-            // 3.2.1. 이전 문의 수 패널티
-            long inquiriesLastHour = inquiryLogService.getRecentInquiryCount(
-                    hospitalData.getHospitalCode(),
-                    Duration.ofHours(1)
-            );
+            // 4.2. 패널티 계산
+            // 4.2.1. 이전 문의 수 패널티
+            long inquiriesLastHour = recentInquiryCountByCode.getOrDefault(hospitalCode, 0L);
             double rejectionCountPenalty = (double) (inquiriesLastHour * -50);
 
             String deselectionReason = null;
@@ -175,8 +196,8 @@ public class HospitalRankingService {
 
             Boolean isWarning = false;
 
-            // 3.2.2. 이전 거절 이력 패널티 계산
-            RedisService.CooldownData cooldownData = redisService.getActiveCooldownInfo(hospitalCode, symptomKeyword.getKeyword());
+            // 4.2.2. 이전 거절 이력 패널티 계산
+            RedisService.CooldownData cooldownData = cooldownByCode.get(hospitalCode);
             if (cooldownData != null) {
                 RejectionReason rejectionReason = cooldownData.getReason();
                 isWarning = true;
@@ -187,14 +208,14 @@ public class HospitalRankingService {
 
                 rejectionHistoryPenalty = -1000.0;
             } else {
-                // 3.2.3. 병원 거절 메시지 페널티 계산
+                // 4.2.3. 병원 거절 메시지 페널티 계산
                 AiPenaltyInfo aiPenalty = penaltyMap.getOrDefault(hospitalCode, AiPenaltyInfo.empty());
 
                 deselectionReason = aiPenalty.getPenaltyReason().isEmpty() ? null : aiPenalty.getPenaltyReason();
                 unavailableMessagePenalty = convertProbabilityToScore(aiPenalty.getRejectionProbability(), -500.0);
             }
 
-            // 3.3. 최종 점수 계산
+            // 4.3. 최종 점수 계산
             double finalScore = baseScore
                     + bedAvailabilityScore
                     + rejectionCountPenalty
@@ -216,23 +237,40 @@ public class HospitalRankingService {
                     scoreDetails,
                     deselectionReason);
 
-            // 순위가 매겨진 병원 저장
-            hospitalRankingRepository.save(hospitalRanking);
-
-            // 4. 응답 생성
-            HospitalInfo hospitalInfo = HospitalInfo.from(hospital, duration, distance);
-            RankingInfo rankingInfo = RankingInfo.from(
+            buildContexts.add(new RankingBuildContext(
                     hospitalRanking,
+                    hospital,
+                    duration,
+                    distance,
                     finalScore,
                     capabilities,
                     isWarning,
                     deselectionReason,
                     cooldownAppliedAt,
-                    cooldownDurationSeconds,
+                    cooldownDurationSeconds));
+        }
+
+        // 순위가 매겨진 병원 일괄 저장
+        hospitalRankingRepository.saveAll(buildContexts.stream()
+                .map(RankingBuildContext::hospitalRanking)
+                .toList());
+
+        // 5. 응답 생성
+        List<HospitalRankingInfo> response = new ArrayList<>();
+        for (RankingBuildContext context : buildContexts) {
+            HospitalInfo hospitalInfo = HospitalInfo.from(context.hospital(), context.duration(), context.distance());
+            RankingInfo rankingInfo = RankingInfo.from(
+                    context.hospitalRanking(),
+                    context.finalScore(),
+                    context.capabilities(),
+                    context.isWarning(),
+                    context.deselectionReason(),
+                    context.cooldownAppliedAt(),
+                    context.cooldownDurationSeconds(),
                     false);
 
             response.add(HospitalRankingInfo.from(
-                    hospitalRanking.getHospitalRankingId(),
+                    context.hospitalRanking().getHospitalRankingId(),
                     hospitalInfo,
                     new ArrayList<>(),
                     rankingInfo,
@@ -240,7 +278,7 @@ public class HospitalRankingService {
             );
         }
 
-        // 5. response 정렬
+        // 6. response 정렬
         response.sort(Comparator.comparingDouble((HospitalRankingInfo info) -> info.getRankingInfo().getScore())
                 .reversed());
 
@@ -410,8 +448,17 @@ public class HospitalRankingService {
                         }
                 ));
 
-        List<HospitalRankingInfo> response = new ArrayList<>();
         String symptomKeyword = hospitalRankingList.get(0).getSearchSession().getIncident().getPatientSymptomKeyword().getKeyword();
+
+        List<String> hospitalCodes = hospitalRankingList.stream()
+                .map(hospitalRanking -> hospitalRanking.getHospital().getCode())
+                .toList();
+        Map<String, RedisService.CooldownData> cooldownByHospitalCode =
+                redisService.getActiveCooldownInfos(hospitalCodes, symptomKeyword);
+
+        Map<Long, InquiryResult> inquiryResultByRankingId = inquiryLogService.getInquiryResults(inquiryLogMap);
+
+        List<HospitalRankingInfo> response = new ArrayList<>();
 
         for (HospitalRanking hospitalRanking : hospitalRankingList) {
             long hospitalRankingId = hospitalRanking.getHospitalRankingId();
@@ -433,7 +480,7 @@ public class HospitalRankingService {
                     scoreDetails.getEta(),
                     scoreDetails.getDistance());
 
-            RedisService.CooldownData cooldownData = redisService.getActiveCooldownInfo(hospital.getCode(), symptomKeyword);
+            RedisService.CooldownData cooldownData = cooldownByHospitalCode.get(hospital.getCode());
             Boolean isWarning = false;
             String deselectionReason = hospitalRanking.getDeselectionReason();
             if (hospitalRanking.getDeselectionReason() != null) isWarning = true;
@@ -460,7 +507,7 @@ public class HospitalRankingService {
                     hospitalRanking.getIsSelectedByUser()
             );
 
-            InquiryResult inquiryResult = inquiryLogService.getInquiryResult(hospitalRankingId);
+            InquiryResult inquiryResult = inquiryResultByRankingId.get(hospitalRankingId);
 
             response.add(HospitalRankingInfo.from(
                     hospitalRankingId,

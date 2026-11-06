@@ -36,21 +36,11 @@ public class SearchSessionController {
         return ResponseEntity.ok(response);
     }
 
-// ----- ----- ----- ----- ----- [PROD] ----- ----- ----- ----- -----
     @PreAuthorize("hasAnyRole('ADMIN', 'VERIFIED')")
     @PostMapping("/{sessionId}/inquiries")
     public ResponseEntity<Void> startInquiry(@PathVariable("sessionId") long sessionId,
                                              @RequestBody List<Long> hospitalRankingIds) {
-//        searchSessionService.startInquiry(sessionId, hospitalRankingIds);
-        return ResponseEntity.accepted().build();
-    }
-
-// ----- ----- ----- ----- ----- [TEST] ----- ----- ----- ----- -----
-    @PreAuthorize("hasAnyRole('ADMIN', 'VERIFIED')")
-    @PostMapping("/{sessionId}/inquiries/test")
-    public ResponseEntity<Void> startTestInquiry(@PathVariable("sessionId") long sessionId,
-                                             @RequestBody List<Long> hospitalRankingIds) {
-        searchSessionService.startTestInquiry(sessionId, hospitalRankingIds);
+        searchSessionService.startInquiry(sessionId, hospitalRankingIds);
         return ResponseEntity.accepted().build();
     }
 }

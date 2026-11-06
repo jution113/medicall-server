@@ -25,7 +25,9 @@ import java.net.URI;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Optional;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -42,8 +44,8 @@ public class HospitalService {
     private static final int PAGE_SIZE = 1000;
     private static final DateTimeFormatter API_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.S");
 
-    public Optional<Hospital> findHospital(String hospitalCode) {
-        return hospitalRepository.findByCode(hospitalCode);
+    public List<Hospital> findHospitals(List<String> hospitalCodes) {
+        return hospitalRepository.findAllByCodeIn(hospitalCodes);
     }
 
     @Transactional
@@ -75,46 +77,42 @@ public class HospitalService {
             SeoulHospitalApiResponse response = callSeoulApi(HOSPITAL_INFO_SERVICE, startIndex, endIndex);
 
             if (response != null && response.getHospitalInfo() != null && response.getHospitalInfo().getRows() != null) {
-                for (HospitalRowDto dto : response.getHospitalInfo().getRows()) {
-                    saveOrUpdateHospital(dto);
-                }
+                saveOrUpdateHospitals(response.getHospitalInfo().getRows());
             }
         }
         log.info("병원 정보 동기화 완료.");
     }
 
-    private void saveOrUpdateHospital(HospitalRowDto dto) {
-        if (dto.getHpid() == null || dto.getHpid().isEmpty()) {
-            return;
-        }
+    private void saveOrUpdateHospitals(List<HospitalRowDto> dtos) {
+        List<HospitalRowDto> validDtos = dtos.stream()
+                .filter(dto -> dto.getHpid() != null && !dto.getHpid().isEmpty())
+                .toList();
 
-        Optional<Hospital> optionalHospital = hospitalRepository.findByCode(dto.getHpid());
+        List<String> codes = validDtos.stream().map(HospitalRowDto::getHpid).toList();
+        Map<String, Hospital> hospitalByCode = hospitalRepository.findAllByCodeIn(codes).stream()
+                .collect(Collectors.toMap(Hospital::getCode, Function.identity()));
 
-        Location location = (dto.getWgs84Lat() != null && dto.getWgs84Lon() != null) ?
-                new Location(dto.getWgs84Lat(), dto.getWgs84Lon()) : null;
+        for (HospitalRowDto dto : validDtos) {
+            Location location = (dto.getWgs84Lat() != null && dto.getWgs84Lon() != null) ?
+                    new Location(dto.getWgs84Lat(), dto.getWgs84Lon()) : null;
 
-        LocalDateTime apiDataGeneratedAt = null;
-        try {
-            apiDataGeneratedAt = LocalDateTime.parse(dto.getWorkDttm(), API_DATE_FORMATTER);
-        } catch (Exception e) {
-            log.warn("WORK_DTTM 파싱 실패 (HPID: {}): {}", dto.getHpid(), dto.getWorkDttm());
-        }
+            LocalDateTime apiDataGeneratedAt = null;
+            try {
+                apiDataGeneratedAt = LocalDateTime.parse(dto.getWorkDttm(), API_DATE_FORMATTER);
+            } catch (Exception e) {
+                log.warn("WORK_DTTM 파싱 실패 (HPID: {}): {}", dto.getHpid(), dto.getWorkDttm());
+            }
 
-        // --- 2. 매핑 수정 ---
-        String name = dto.getDutyName();
-        HospitalTypeCode typeCode = HospitalTypeCode.findByApiCode(dto.getDutyEmcls());
-        String address = dto.getDutyAddr();
-        String phoneNumber = dto.getDutyTel3(); // 응급실 전화
+            String name = dto.getDutyName();
+            HospitalTypeCode typeCode = HospitalTypeCode.findByApiCode(dto.getDutyEmcls());
+            String address = dto.getDutyAddr();
+            String phoneNumber = dto.getDutyTel3(); // 응급실 전화
 
-        if (optionalHospital.isPresent()) {
-            // 3-1. 기존 병원이 존재하면, 정보 업데이트
-            Hospital hospital = optionalHospital.get();
-            hospital.updateFromApi(name, typeCode, address, location, phoneNumber, apiDataGeneratedAt);
-            hospitalRepository.save(hospital);
-        } else {
-            // 3-2. 기존 병원이 없으면, 새로 생성
-            Hospital hospital = new Hospital();
-            hospital.setCode(dto.getHpid()); // 고유 코드 설정
+            Hospital hospital = hospitalByCode.get(dto.getHpid());
+            if (hospital == null) {
+                hospital = new Hospital();
+                hospital.setCode(dto.getHpid()); // 고유 코드 설정
+            }
             hospital.updateFromApi(name, typeCode, address, location, phoneNumber, apiDataGeneratedAt);
             hospitalRepository.save(hospital);
         }

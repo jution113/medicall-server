@@ -7,28 +7,16 @@ import juton113.Medicall.domain.incident.dto.Location;
 import juton113.Medicall.domain.incident.enums.SymptomKeyword;
 import juton113.Medicall.global.config.SymptomRuleConfig;
 import lombok.*;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
 
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@RequiredArgsConstructor
-@Service
-public class NemcApiService {
+public interface NemcApiService {
 
-    private final RestTemplate restTemplate;
-
-    public List<NemcHospitalData> getRealtimeHospitalData(
+    List<NemcHospitalData> getRealtimeHospitalData(
             String asort,
             String rltmEmerCd,
             String rltmCd,
@@ -36,78 +24,7 @@ public class NemcApiService {
             String rltmMeCd,
             String subTypes,
             Location location,
-            int radiusKm) {
-
-        // 1. URL 및 쿼리 파라미터 빌드
-        UriComponentsBuilder builder = UriComponentsBuilder
-                .fromUriString("https://mediboard.nemc.or.kr")
-                .path("/api/v1/search/detail/general")
-                .queryParam("searchCondition", "radius")
-                .queryParam("lat", location.getLatitude())
-                .queryParam("lon", location.getLongitude())
-                .queryParam("radius", radiusKm);
-
-        if (asort != null && !asort.isEmpty()) {
-            builder.queryParam("asort", asort);
-        }
-        if (rltmEmerCd != null && !rltmEmerCd.isEmpty()) {
-            builder.queryParam("rltmEmerCd", rltmEmerCd);
-        }
-        if (rltmCd != null && !rltmCd.isEmpty()) {
-            builder.queryParam("rltmCd", rltmCd);
-        }
-        if (svdssCd != null && !svdssCd.isEmpty()) {
-            builder.queryParam("svdssCd", svdssCd);
-        }
-        if (rltmMeCd != null && !rltmMeCd.isEmpty()) {
-            builder.queryParam("rltmMeCd", rltmMeCd);
-        }
-        if (subTypes != null && !subTypes.isEmpty()) {
-            builder.queryParam("subTypes", subTypes);
-        }
-
-        URI uri = builder.encode().build().toUri();
-
-        // 2. HTTP 헤더 설정
-        HttpHeaders headers = new HttpHeaders();
-        HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
-
-        try {
-            // 3. API 호출 및 응답을 DTO로 자동 파싱
-            ResponseEntity<NemcApiResponse> response = restTemplate.exchange(
-                    uri,
-                    HttpMethod.GET,
-                    requestEntity,
-                    NemcApiResponse.class
-            );
-
-            // 4. 필요한 값 추출 (result.data)
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                NemcResult result = response.getBody().getResult();
-                if (result != null && result.getData() != null) {
-                    return result.getData();
-                }
-            }
-        } catch (Exception e) {
-            throw new RuntimeException("NEMC API 호출 중 오류 발생: " + e.getMessage());
-        }
-
-        throw new RuntimeException("유효한 병원 정보를 가져오지 못했습니다.");
-    }
-
-    @Getter @Setter @NoArgsConstructor
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class NemcApiResponse {
-        private String message;
-        private NemcResult result;
-    }
-
-    @Getter @Setter @NoArgsConstructor
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class NemcResult {
-        private int count;
-        private List<NemcHospitalData> data;
-    }
+            int radiusKm);
 
     @Getter
     @Setter
@@ -115,7 +32,7 @@ public class NemcApiService {
     @AllArgsConstructor
     @Builder
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class NemcHospitalData {
+    class NemcHospitalData {
         @JsonProperty("code")
         private String hospitalCode; // (정부 기관 ID)
         private String name;
@@ -219,7 +136,7 @@ public class NemcApiService {
     // "rltmEmerCd", "rltmCd" 등 공통 맵 구조
     @Getter @Setter @NoArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class NemcElementMap {
+    class NemcElementMap {
         private boolean hasElement;
         private boolean isBlocked;
         private Map<String, NemcAvailabilityInfo> elements;
@@ -228,7 +145,7 @@ public class NemcApiService {
     // "elements" 내부의 공통 가용성 정보
     @Getter @Setter @NoArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class NemcAvailabilityInfo {
+    class NemcAvailabilityInfo {
         private String availableLevel;
         private Integer total;
         private Integer usable;
@@ -239,7 +156,7 @@ public class NemcApiService {
     // "erMessages"용 메시지 DTO
     @Getter @Setter @NoArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class NemcMessage {
+    class NemcMessage {
         private String message;
         private String category;
         private String reason;
@@ -249,7 +166,7 @@ public class NemcApiService {
     // "unavailableMessages"용 메시지 DTO
     @Getter @Setter @NoArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class NemcUnavailableMessage {
+    class NemcUnavailableMessage {
         private String message;
         private String code;
         private String category;

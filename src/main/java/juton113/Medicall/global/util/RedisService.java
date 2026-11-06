@@ -19,7 +19,9 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -150,6 +152,34 @@ public class RedisService {
             redisTemplate.delete(key);
             return null;
         }
+    }
+
+    public Map<String, CooldownData> getActiveCooldownInfos(List<String> hospitalCodes, String symptomKeyword) {
+        List<String> keys = hospitalCodes.stream()
+                .map(hospitalCode -> getCooldownKey(hospitalCode, symptomKeyword))
+                .toList();
+
+        ValueOperations<String, String> valueOperations = redisTemplate.opsForValue();
+        List<String> jsonDataList = valueOperations.multiGet(keys);
+
+        Map<String, CooldownData> cooldownByHospitalCode = new HashMap<>();
+        if (jsonDataList == null) {
+            return cooldownByHospitalCode;
+        }
+
+        for (int i = 0; i < hospitalCodes.size(); i++) {
+            String jsonData = jsonDataList.get(i);
+            if (jsonData == null) continue;
+
+            try {
+                cooldownByHospitalCode.put(hospitalCodes.get(i), objectMapper.readValue(jsonData, CooldownData.class));
+            } catch (Exception e) {
+                // JSON 파싱 실패 시 (데이터 오염), 해당 키 삭제
+                redisTemplate.delete(keys.get(i));
+            }
+        }
+
+        return cooldownByHospitalCode;
     }
 
     public void addRejectionCooldown(String hospitalCode, String symptomKeyword, RejectionReason reason, Duration ttl) {

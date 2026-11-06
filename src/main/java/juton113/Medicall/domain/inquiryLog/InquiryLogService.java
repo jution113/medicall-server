@@ -25,6 +25,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
@@ -39,30 +41,40 @@ public class InquiryLogService {
     private final ReviewLogRepository reviewLogRepository;
 
     @Transactional(readOnly = true)
-    public long getRecentInquiryCount(String hospitalCode, Duration duration) {
+    public Map<String, Long> getRecentInquiryCounts(List<String> hospitalCodes, Duration duration) {
         LocalDateTime startTime = LocalDateTime.now().minus(duration);
 
-        return inquiryLogRepository.countByHospitalCodeAndCallStartedAtAfter(
-                hospitalCode,
-                startTime
-        );
+        return inquiryLogRepository.countGroupedByHospitalCodesAndCallStartedAtAfter(hospitalCodes, startTime)
+                .stream()
+                .collect(Collectors.toMap(
+                        row -> (String) row[0],
+                        row -> (Long) row[1]
+                ));
     }
 
-    @Transactional
-    public InquiryResult getInquiryResult(long hospitalRankingId) {
-        InquiryLog inquiryLog = inquiryLogRepository.findByHospitalRanking_hospitalRankingId(hospitalRankingId);
+    @Transactional(readOnly = true)
+    public Map<Long, InquiryResult> getInquiryResults(Map<Long, InquiryLog> inquiryLogByHospitalRankingId) {
+        List<Long> inquiryIds = inquiryLogByHospitalRankingId.values().stream()
+                .map(InquiryLog::getInquiryLogId)
+                .toList();
 
-        if (inquiryLog == null) return null;
-        long inquiryId = inquiryLog.getInquiryLogId();
+        Map<Long, CallArtifact> artifactByInquiryId = callArtifactService.getArtifactsByInquiryIds(inquiryIds);
 
-        CallArtifact callArtifact = callArtifactService.getArtifactByInquiryId(inquiryId);
-        Artifact artifact = callArtifact == null ? null : Artifact.from(callArtifact);
+        return inquiryLogByHospitalRankingId.entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        entry -> {
+                            InquiryLog inquiryLog = entry.getValue();
+                            CallArtifact callArtifact = artifactByInquiryId.get(inquiryLog.getInquiryLogId());
+                            Artifact artifact = callArtifact == null ? null : Artifact.from(callArtifact);
 
-        return InquiryResult.from(inquiryId,
-                inquiryLog.getCallStatus(),
-                inquiryLog.getCallResponseStatus(),
-                inquiryLog.getRejectionReasonCategory(),
-                artifact);
+                            return InquiryResult.from(inquiryLog.getInquiryLogId(),
+                                    inquiryLog.getCallStatus(),
+                                    inquiryLog.getCallResponseStatus(),
+                                    inquiryLog.getRejectionReasonCategory(),
+                                    artifact);
+                        }
+                ));
     }
 
     @Transactional
@@ -84,7 +96,7 @@ public class InquiryLogService {
 
         // 문의 시작
         for (HospitalRanking hospitalRanking : targetHospitalRankings) {
-            String callId = twilioService.initiateCall(inquiryMessage, hospitalRanking.getHospital().getPhoneNumber());
+            String callId = twilioService.initiateCall(inquiryMessage, hospitalRanking.getHospital().getPhoneNumber()); // fetch join 덕분에 프록시 초기화 없음
             inquiryLogRepository.save(InquiryLog.from(hospitalRanking, callId));
 
             // 문의 직후 상황 전파
@@ -117,37 +129,6 @@ public class InquiryLogService {
         InquiryLog inquiryLog = getInquiryByCallId(callSid);
 
         twilioService.processCallStatus(callSid, callStatus, sipCode, inquiryLog);
-    }
-
-    // ----- ----- ----- ----- ----- [TEST] ----- ----- ----- ----- -----
-    @Transactional
-    public void createTestInquiries(long sessionId, Incident incident, List<HospitalRanking> targetHospitalRankings) {
-        // 문의 메시지 생성
-        InquiryMessageCreateRequest requestBody = InquiryMessageCreateRequest.builder()
-                .patientInformation(PatientInformation.form(incident))
-                .onSiteTreatment(incident.getOnSiteTreatment())
-                .build();
-
-        redisService.saveInqueryInfo(sessionId, requestBody, Duration.ofHours(1));
-
-        String inquiryMessage = mlServerService.createInquiryMessage(sessionId, requestBody).getFirstMonologue();
-
-        // 문의 시작
-        for (HospitalRanking hospitalRanking : targetHospitalRankings) {
-            // 코드가 T로 시작하는 병원들만 문의
-            if (!hospitalRanking.getHospital().getCode().startsWith("T")) continue;
-
-            String callId = twilioService.initiateCall(inquiryMessage, hospitalRanking.getHospital().getPhoneNumber());
-            inquiryLogRepository.save(InquiryLog.from(hospitalRanking, callId));
-
-            // 문의 직후 상황 전파
-            sseService.sendInquiryStatus(sessionId,
-                    InquiryStatusEvent.from(hospitalRanking.getHospitalRankingId(),
-                            CallStatus.CALLED,
-                            null,
-                            null)
-            );
-        }
     }
 
     public List<InquiryLog> getInquiryLogsByRankings(List<HospitalRanking> hospitalRankingList) {
